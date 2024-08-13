@@ -2,29 +2,34 @@ import numpy as np
 
 from .onnxdet import inference_detector
 from .onnxpose import inference_pose
-from .trt_utilities import Engine
+from ..trt_utilities import Engine
 import torch
 import torch.nn.functional as F
 import folder_paths
 import os
 
+
 class Wholebody:
     def __init__(self):
-        self.engine = Engine(os.path.join(folder_paths.models_dir,"tensorrt", "dwpose", "yolox_l.engine"))
+        self.engine = Engine(os.path.join(
+            folder_paths.models_dir, "tensorrt", "dwpose", "yolox_l.engine"))
         self.engine.load()
         self.engine.activate()
         self.engine.allocate_buffers()
-        
-        self.engine2 = Engine(os.path.join(folder_paths.models_dir,"tensorrt", "dwpose", "dw-ll_ucoco_384.engine"))
+
+        self.engine2 = Engine(os.path.join(
+            folder_paths.models_dir, "tensorrt", "dwpose", "dw-ll_ucoco_384.engine"))
         self.engine2.load()
         self.engine2.activate()
         self.engine2.allocate_buffers()
-    
+
     def __call__(self, image_np_hwc):
         cudaStream = torch.cuda.current_stream().cuda_stream
-        
-        det_result = inference_detector(engine=self.engine, cudaStream=cudaStream, image_np_hwc=image_np_hwc)
-        keypoints, scores = inference_pose(engine=self.engine2, cudaStream=cudaStream, out_bbox=det_result, image_np_hwc=image_np_hwc)
+
+        det_result = inference_detector(
+            engine=self.engine, cudaStream=cudaStream, image_np_hwc=image_np_hwc)
+        keypoints, scores = inference_pose(
+            engine=self.engine2, cudaStream=cudaStream, out_bbox=det_result, image_np_hwc=image_np_hwc)
 
         keypoints_info = np.concatenate(
             (keypoints, scores[..., None]), axis=-1)
@@ -48,7 +53,5 @@ class Wholebody:
 
         keypoints, scores = keypoints_info[
             ..., :2], keypoints_info[..., 2]
-        
+
         return keypoints, scores
-
-
