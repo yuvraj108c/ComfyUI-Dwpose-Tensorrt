@@ -51,7 +51,7 @@ pip install -r requirements.txt
 
    - `python export_trt.py`
 
-3. Place the exported engine inside ComfyUI `/models/tensorrt/dwpose` directory
+3. Place the exported engines inside ComfyUI `/models/tensorrt/dwpose` directory
 
 ## ☀️ Usage
 
