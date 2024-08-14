@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-dwpose-tensorrt"
+description = "This project provides a Tensorrt implementation of Dwpose for ultra fast pose estimation inside ComfyUI"
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["tensorrt", "polygraphy", "numpy", "tqdm", "opencv-python", "matplotlib"]
+
+[project.urls]
+Repository = "https://github.com/yuvraj108c/ComfyUI-Dwpose-Tensorrt"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-Dwpose-Tensorrt"
+Icon = ""
