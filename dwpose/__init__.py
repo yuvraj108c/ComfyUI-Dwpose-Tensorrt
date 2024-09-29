@@ -5,12 +5,15 @@
 # 4th Edited by ControlNet (added face and correct hands)
 
 import os
+import json
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 import numpy as np
 from . import util
 from .wholebody import Wholebody
-def draw_pose(pose, H, W):
+
+def draw_pose(pose, image_np_hwc):
+    H,W = image_np_hwc.shape[:2]
     bodies = pose['bodies']
     faces = pose['faces']
     hands = pose['hands']
@@ -26,6 +29,11 @@ def draw_pose(pose, H, W):
 
     return canvas
 
+def draw_face_lmks(faces, image_np_hwc):
+    H,W = image_np_hwc.shape[:2]
+    canvas = np.zeros(shape=(H, W, 3), dtype=np.uint8)
+    canvas = util.draw_facepose(canvas, faces, 1)
+    return canvas
 
 class DWposeDetector:
     def __init__(self):
@@ -34,6 +42,7 @@ class DWposeDetector:
 
     def __call__(self, image_np_hwc, show_face, show_hands, show_body):
         image_np_hwc= image_np_hwc.copy()
+
         
         H, W, C = image_np_hwc.shape
         
@@ -55,18 +64,26 @@ class DWposeDetector:
         un_visible = subset<0.3
         candidate[un_visible] = -1
 
-        foot = candidate[:,18:24]
+        # foot = candidate[:,18:24]
 
         faces = candidate[:,24:92]
 
-        hands = candidate[:,92:113]
-        hands = np.vstack([hands, candidate[:,113:]])
+        left_hands = candidate[:,92:113]
+        right_hands = candidate[:,113:]
+
+        hands = np.vstack([left_hands, right_hands])
 
         bodies = dict(candidate=body, subset=score)
-        pose = dict(bodies=bodies, hands=hands, faces=faces)
         
         pose = dict(bodies=bodies if show_body else {'candidate':[], 'subset':[]}, faces=faces if show_face else [], hands=hands if show_hands else [])
-        
-   
 
-        return draw_pose(pose, H, W)
+        face_bbox = util.convert_face_lmks_to_bbox(faces, H, W)
+
+        cropped_faces = util.crop_face_by_bbox(image_np_hwc, face_bbox)
+
+        pose = draw_pose(pose, image_np_hwc)
+
+        face_lmks_img = draw_face_lmks(faces, image_np_hwc)
+        cropped_face_lmks = util.crop_face_by_bbox(face_lmks_img, face_bbox)
+        
+        return pose, face_bbox, cropped_faces, cropped_face_lmks

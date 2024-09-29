@@ -23,4 +23,4 @@ def export_trt(trt_path: str, onnx_path: str, use_fp16: bool):
 export_trt(trt_path="./yolox_l.engine",
            onnx_path="./yolox_l.onnx", use_fp16=True)
 export_trt(trt_path="./dw-ll_ucoco_384.engine",
-           onnx_path="./dw-ll_ucoco_384.onnx", use_fp16=True)
+           onnx_path="./dw-ll_ucoco_384.onnx", use_fp16=False)

@@ -17,8 +17,8 @@ class DwposeTensorrt:
                 "show_body": ("BOOLEAN", {"default": True}),
             }
         }
-    RETURN_NAMES = ("IMAGE",)
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE", "cropped_faces", "cropped_faces_lmks", "FACE_BBOXES",)
+    RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE", "FACE_BBOXES",)
     FUNCTION = "main"
     CATEGORY = "tensorrt"
 
@@ -27,16 +27,38 @@ class DwposeTensorrt:
         pbar = ProgressBar(images.shape[0])
         dwpose = DWposeDetector()
         pose_frames = []
+        cropped_faces_frames = []
+        cropped_faces_lmks_frames = []
+        face_bboxes = []
 
         for img in images:
             img_np_hwc = (img.cpu().numpy() * 255).astype(np.uint8)
-            result = dwpose(image_np_hwc=img_np_hwc, show_face=show_face,
+            pose, face_bbox, cropped_faces, cropped_face_lmks = dwpose(image_np_hwc=img_np_hwc, show_face=show_face,
                             show_hands=show_hands, show_body=show_body)
-            pose_frames.append(result)
+            pose_frames.append(pose)
+
+            if face_bbox:
+                face_bboxes.append(face_bbox)
+
+            # flatten list
+            if cropped_faces:
+                for cropped_face in cropped_faces:
+                    cropped_faces_frames.append(cropped_face)
+                for cropped_face_lmk in cropped_face_lmks:
+                    cropped_faces_lmks_frames.append(cropped_face_lmk)
+
             pbar.update(1)
 
         pose_frames_np = np.array(pose_frames).astype(np.float32) / 255
-        return (torch.from_numpy(pose_frames_np),)
+        if cropped_faces_frames:
+            cropped_faces_np = np.array(cropped_faces_frames, dtype=np.float32) / 255
+            cropped_faces_lmks_frames_np = np.array(cropped_faces_lmks_frames, dtype=np.float32) / 255
+        else:
+            # black image
+            cropped_faces_np = np.zeros((1, images.shape[1], images.shape[2], 3), dtype=np.float32) / 255
+            cropped_faces_lmks_frames_np = np.zeros((1, images.shape[1], images.shape[2], 3), dtype=np.float32) / 255
+
+        return (torch.from_numpy(pose_frames_np), torch.from_numpy(cropped_faces_np), torch.from_numpy(cropped_faces_lmks_frames_np), face_bboxes,)
 
 
 NODE_CLASS_MAPPINGS = {

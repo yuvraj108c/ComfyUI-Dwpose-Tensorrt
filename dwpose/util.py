@@ -137,7 +137,7 @@ def draw_handpose(canvas, all_hand_peaks):
     return canvas
 
 
-def draw_facepose(canvas, all_lmks):
+def draw_facepose(canvas, all_lmks, radius=3):
     H, W, C = canvas.shape
     for lmks in all_lmks:
         lmks = np.array(lmks)
@@ -146,9 +146,77 @@ def draw_facepose(canvas, all_lmks):
             x = int(x * W)
             y = int(y * H)
             if x > eps and y > eps:
-                cv2.circle(canvas, (x, y), 3, (255, 255, 255), thickness=-1)
+                cv2.circle(canvas, (x, y), radius, (255, 255, 255), thickness=-1)
     return canvas
 
+
+def crop_face_by_bbox(image_np_hwc, bboxes):
+    cropped_faces = []
+
+    for bbox in bboxes:
+        x1, y1 = bbox[0]
+        x2, y2 = bbox[1]
+
+        cropped_face = image_np_hwc[y1:y2, x1:x2]
+        cropped_faces.append(cropped_face)
+
+    return cropped_faces    
+
+def convert_face_lmks_to_bbox(all_lmks, H, W):
+    if np.all(all_lmks == -1):
+        return []
+
+    bbox = []
+    max_width = 0
+    max_height = 0
+
+    # Find the largest width and height among all the bounding boxes
+    for lmks in all_lmks:
+        lmks = np.array(lmks)
+        
+        # Convert normalized coordinates to pixel coordinates
+        x_coords = lmks[:, 0] * W
+        y_coords = lmks[:, 1] * H
+        
+        # Get bounding box
+        x_min, x_max = np.min(x_coords), np.max(x_coords)
+        y_min, y_max = np.min(y_coords), np.max(y_coords)
+        
+        # Update the max width and height
+        max_width = max(max_width, x_max - x_min)
+        max_height = max(max_height, y_max - y_min)
+
+    # Crop the faces using the largest width and height
+    for lmks in all_lmks:
+        lmks = np.array(lmks)
+        
+        # Convert normalized coordinates to pixel coordinates
+        x_coords = lmks[:, 0] * W
+        y_coords = lmks[:, 1] * H
+        
+        # Get bounding box
+        x_min, x_max = np.min(x_coords), np.max(x_coords)
+        y_min, y_max = np.min(y_coords), np.max(y_coords)
+
+        # Calculate the difference between the largest and original bounding box sizes
+        width_diff = max_width - (x_max - x_min)
+        height_diff = max_height - (y_max - y_min)
+        
+        # Distribute the difference across both coordinates
+        new_x_min = (x_min - width_diff // 2)
+        new_y_min = (y_min - height_diff // 2)
+        new_x_max = (x_max + width_diff - width_diff // 2)
+        new_y_max = (y_max + height_diff - height_diff // 2)
+        
+        # Ensure the bounding box stays within the image bounds
+        new_x_min = max(0, new_x_min)
+        new_y_min = max(0, new_y_min)
+        new_x_max = min(W, new_x_max)
+        new_y_max = min(H, new_y_max)
+        
+        bbox.append(((int(new_x_min), int(new_y_min)), (int(new_x_max), int(new_y_max))))
+    
+    return bbox
 
 # detect hand according to body pose keypoints
 # please refer to https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/hand/handDetector.cpp
