@@ -36,9 +36,8 @@ def draw_face_lmks(faces, image_np_hwc):
     return canvas
 
 class DWposeDetector:
-    def __init__(self):
-
-        self.pose_estimation = Wholebody()
+    def __init__(self,engine,engine2):
+        self.pose_estimation = Wholebody(engine,engine2)
 
     def __call__(self, image_np_hwc, show_face, show_hands, show_body):
         image_np_hwc= image_np_hwc.copy()

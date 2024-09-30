@@ -10,18 +10,10 @@ import os
 
 
 class Wholebody:
-    def __init__(self):
-        self.engine = Engine(os.path.join(
-            folder_paths.models_dir, "tensorrt", "dwpose", "yolox_l.engine"))
-        self.engine.load()
-        self.engine.activate()
-        self.engine.allocate_buffers()
+    def __init__(self,engine, engine2):
+        self.engine = engine
+        self.engine2 = engine2
 
-        self.engine2 = Engine(os.path.join(
-            folder_paths.models_dir, "tensorrt", "dwpose", "dw-ll_ucoco_384.engine"))
-        self.engine2.load()
-        self.engine2.activate()
-        self.engine2.allocate_buffers()
 
     def __call__(self, image_np_hwc):
         cudaStream = torch.cuda.current_stream().cuda_stream
