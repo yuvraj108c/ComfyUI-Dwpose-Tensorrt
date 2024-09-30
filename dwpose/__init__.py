@@ -32,7 +32,7 @@ def draw_pose(pose, image_np_hwc):
 def draw_face_lmks(faces, image_np_hwc):
     H,W = image_np_hwc.shape[:2]
     canvas = np.zeros(shape=(H, W, 3), dtype=np.uint8)
-    canvas = util.draw_facepose(canvas, faces, 1)
+    canvas = util.draw_facepose(canvas, faces, 2)
     return canvas
 
 class DWposeDetector:

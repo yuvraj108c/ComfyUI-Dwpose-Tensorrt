@@ -167,15 +167,14 @@ def crop_face_by_bbox(image_np_hwc, bboxes):
 
     return cropped_faces    
 
-def convert_face_lmks_to_bbox(all_lmks, H, W):
+def convert_face_lmks_to_bbox(all_lmks, H, W, padding_percent=0.4):
     if np.all(all_lmks == -1):
         return []
 
     bbox = []
-    max_width = 0
-    max_height = 0
+    max_size = 0
 
-    # Find the largest width and height among all the bounding boxes
+    # Find the largest size (width or height) among all the bounding boxes
     for lmks in all_lmks:
         lmks = np.array(lmks)
         
@@ -187,11 +186,13 @@ def convert_face_lmks_to_bbox(all_lmks, H, W):
         x_min, x_max = np.min(x_coords), np.max(x_coords)
         y_min, y_max = np.min(y_coords), np.max(y_coords)
         
-        # Update the max width and height
-        max_width = max(max_width, x_max - x_min)
-        max_height = max(max_height, y_max - y_min)
+        # Update the max size
+        max_size = max(max_size, x_max - x_min, y_max - y_min)
 
-    # Crop the faces using the largest width and height
+    # Add padding to max_size
+    max_size = int(max_size * (1 + padding_percent))
+
+    # Crop the faces using the largest size
     for lmks in all_lmks:
         lmks = np.array(lmks)
         
@@ -199,19 +200,15 @@ def convert_face_lmks_to_bbox(all_lmks, H, W):
         x_coords = lmks[:, 0] * W
         y_coords = lmks[:, 1] * H
         
-        # Get bounding box
-        x_min, x_max = np.min(x_coords), np.max(x_coords)
-        y_min, y_max = np.min(y_coords), np.max(y_coords)
+        # Get bounding box center
+        x_center = (np.min(x_coords) + np.max(x_coords)) / 2
+        y_center = (np.min(y_coords) + np.max(y_coords)) / 2
 
-        # Calculate the difference between the largest and original bounding box sizes
-        width_diff = max_width - (x_max - x_min)
-        height_diff = max_height - (y_max - y_min)
-        
-        # Distribute the difference across both coordinates
-        new_x_min = (x_min - width_diff // 2)
-        new_y_min = (y_min - height_diff // 2)
-        new_x_max = (x_max + width_diff - width_diff // 2)
-        new_y_max = (y_max + height_diff - height_diff // 2)
+        # Calculate new bounding box coordinates
+        new_x_min = int(x_center - max_size / 2)
+        new_y_min = int(y_center - max_size / 2)
+        new_x_max = int(x_center + max_size / 2)
+        new_y_max = int(y_center + max_size / 2)
         
         # Ensure the bounding box stays within the image bounds
         new_x_min = max(0, new_x_min)
@@ -219,7 +216,7 @@ def convert_face_lmks_to_bbox(all_lmks, H, W):
         new_x_max = min(W, new_x_max)
         new_y_max = min(H, new_y_max)
         
-        bbox.append(((int(new_x_min), int(new_y_min)), (int(new_x_max), int(new_y_max))))
+        bbox.append(((new_x_min, new_y_min), (new_x_max, new_y_max)))
     
     return bbox
 

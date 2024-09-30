@@ -1,2 +1,3 @@
 .onnx
 __pycache__
+.vscode

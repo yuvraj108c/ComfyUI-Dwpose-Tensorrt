@@ -121,7 +121,7 @@ class FacePaster:
                     # Ensure the cropped face matches the bounding box size
                     resized_face = F.interpolate(cropped_face.unsqueeze(0).permute(0, 3, 1, 2), 
                                                  size=(y2-y1, x2-x1), 
-                                                 mode='bilinear', 
+                                                 mode='bicubic', 
                                                  align_corners=False)
                     resized_face = resized_face.squeeze(0).permute(1, 2, 0)
                     pasted_images[i, y1:y2, x1:x2, :] = resized_face
