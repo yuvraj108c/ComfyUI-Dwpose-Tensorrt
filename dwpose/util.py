@@ -188,7 +188,8 @@ def convert_face_lmks_to_bbox(all_lmks, H, W):
         face_width = x_max - x_min
         face_height = y_max - y_min
         face_area = face_width * face_height
-        face_areas.append(face_area)
+        if(face_area > 0):
+            face_areas.append(face_area)
 
     # Calculate average face area
     avg_face_area = np.mean(face_areas)
@@ -204,9 +205,12 @@ def convert_face_lmks_to_bbox(all_lmks, H, W):
         
         face_width = x_max - x_min
         face_height = y_max - y_min
+        face_area = face_width * face_height
+        if(face_area <= 0):
+            continue
         
         # Calculate padding based on the ratio of face area to average face area
-        area_ratio = face_areas[i] / avg_face_area
+        area_ratio = face_area / avg_face_area
         adaptive_padding = padding * np.sqrt(area_ratio)
         
         pad_x = int(face_width * adaptive_padding)

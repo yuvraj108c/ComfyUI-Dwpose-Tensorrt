@@ -74,11 +74,20 @@ class DwposeTensorrt:
         for cropped_img_idx in range(len(cropped_faces_frames)):
             cropped_face_t = cropped_faces_frames[cropped_img_idx]
             cropped_lmks_t = cropped_faces_lmks_frames[cropped_img_idx]
-            cropped_face_resized_t = common_upscale(cropped_face_t.permute(0,3,1,2), int(face_size), int(face_size), upscale_method='bicubic', crop='center').permute([0,2,3,1])
+            # cropped_face_resized_t = common_upscale(cropped_face_t.permute(0,3,1,2), int(face_size), int(face_size), upscale_method='bicubic', crop='none').permute([0,2,3,1])
+            cropped_face_resized_t = F.interpolate(cropped_face_t.permute(0, 3, 1, 2), 
+                                                 size=(int(face_size), int(face_size)), 
+                                                 mode='bicubic', 
+                                                 align_corners=False)
             
-            cropped_lmks_resized_t = common_upscale(cropped_lmks_t.permute(0,3,1,2), int(face_size), int(face_size), upscale_method='bicubic', crop='center').permute([0,2,3,1])
-            cropped_faces_frames[cropped_img_idx] = cropped_face_resized_t
-            cropped_faces_lmks_frames[cropped_img_idx] = cropped_lmks_resized_t
+            # cropped_lmks_resized_t = common_upscale(cropped_lmks_t.permute(0,3,1,2), int(face_size), int(face_size), upscale_method='bicubic', crop='none').permute([0,2,3,1])
+            cropped_lmks_resized_t = F.interpolate(cropped_lmks_t.permute(0, 3, 1, 2), 
+                                                 size=(int(face_size), int(face_size)), 
+                                                 mode='bicubic', 
+                                                 align_corners=False)
+
+            cropped_faces_frames[cropped_img_idx] = cropped_face_resized_t.permute([0,2,3,1])
+            cropped_faces_lmks_frames[cropped_img_idx] = cropped_lmks_resized_t.permute([0,2,3,1])
 
 
         if not cropped_faces_frames:
@@ -113,6 +122,8 @@ class FacePaster:
         for i, image_bboxes in enumerate(face_bboxes):
             # Loop through each face in the current image
             for (x1, y1), (x2, y2) in image_bboxes:
+                if not (x1 >= 0 and x2 <= original_images.shape[2] and y1 >= 0 and y2 <= original_images.shape[1]):
+                    print(f"Skipping bounding box: ({x1}, {y1}) to ({x2}, {y2}) (out of image bounds)")
                 if face_index < len(cropped_faces):
                     cropped_face = cropped_faces[face_index]
                     # Ensure the cropped face matches the bounding box size
@@ -121,6 +132,11 @@ class FacePaster:
                                                  mode='bicubic', 
                                                  align_corners=False)
                     resized_face = resized_face.squeeze(0).permute(1, 2, 0)
+                    
+                    # quick fix for large black frames
+                    if resized_face.shape[0] == pasted_images.shape[1] or resized_face.shape[1] == pasted_images.shape[2]:
+                        continue
+
                     pasted_images[i, y1:y2, x1:x2, :] = resized_face
                     face_index += 1
 
