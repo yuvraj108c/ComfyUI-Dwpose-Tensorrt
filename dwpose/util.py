@@ -167,58 +167,60 @@ def crop_face_by_bbox(image_np_hwc, bboxes):
 
     return cropped_faces    
 
-def convert_face_lmks_to_bbox(all_lmks, H, W, padding_percent=0.4):
+
+def convert_face_lmks_to_bbox(all_lmks, H, W):
     if np.all(all_lmks == -1):
         return []
 
     bbox = []
-    max_size = 0
+    padding = 0.3
 
-    # Find the largest size (width or height) among all the bounding boxes
+    # First pass: calculate face sizes, centers, and areas
+    face_areas = []
     for lmks in all_lmks:
         lmks = np.array(lmks)
-        
-        # Convert normalized coordinates to pixel coordinates
         x_coords = lmks[:, 0] * W
         y_coords = lmks[:, 1] * H
         
-        # Get bounding box
         x_min, x_max = np.min(x_coords), np.max(x_coords)
         y_min, y_max = np.min(y_coords), np.max(y_coords)
         
-        # Update the max size
-        max_size = max(max_size, x_max - x_min, y_max - y_min)
+        face_width = x_max - x_min
+        face_height = y_max - y_min
+        face_area = face_width * face_height
+        face_areas.append(face_area)
 
-    # Add padding to max_size
-    max_size = int(max_size * (1 + padding_percent))
+    # Calculate average face area
+    avg_face_area = np.mean(face_areas)
 
-    # Crop the faces using the largest size
-    for lmks in all_lmks:
+    # Second pass: add padding based on face area
+    for i, lmks in enumerate(all_lmks):
         lmks = np.array(lmks)
-        
-        # Convert normalized coordinates to pixel coordinates
         x_coords = lmks[:, 0] * W
         y_coords = lmks[:, 1] * H
         
-        # Get bounding box center
-        x_center = (np.min(x_coords) + np.max(x_coords)) / 2
-        y_center = (np.min(y_coords) + np.max(y_coords)) / 2
-
-        # Calculate new bounding box coordinates
-        new_x_min = int(x_center - max_size / 2)
-        new_y_min = int(y_center - max_size / 2)
-        new_x_max = int(x_center + max_size / 2)
-        new_y_max = int(y_center + max_size / 2)
+        x_min, x_max = np.min(x_coords), np.max(x_coords)
+        y_min, y_max = np.min(y_coords), np.max(y_coords)
         
-        # Ensure the bounding box stays within the image bounds
-        new_x_min = max(0, new_x_min)
-        new_y_min = max(0, new_y_min)
-        new_x_max = min(W, new_x_max)
-        new_y_max = min(H, new_y_max)
+        face_width = x_max - x_min
+        face_height = y_max - y_min
         
-        bbox.append(((new_x_min, new_y_min), (new_x_max, new_y_max)))
+        # Calculate padding based on the ratio of face area to average face area
+        area_ratio = face_areas[i] / avg_face_area
+        adaptive_padding = padding * np.sqrt(area_ratio)
+        
+        pad_x = int(face_width * adaptive_padding)
+        pad_y = int(face_height * adaptive_padding)
+        
+        x_min = max(0, int(x_min - pad_x))
+        y_min = max(0, int(y_min - pad_y))
+        x_max = min(W, int(x_max + pad_x))
+        y_max = min(H, int(y_max + pad_y))
+        
+        bbox.append(((x_min, y_min), (x_max, y_max)))
     
     return bbox
+
 
 # detect hand according to body pose keypoints
 # please refer to https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/hand/handDetector.cpp

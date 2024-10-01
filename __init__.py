@@ -1,7 +1,7 @@
 import numpy as np
 import torch.nn.functional as F
 import torch
-from comfy.utils import ProgressBar
+from comfy.utils import ProgressBar,common_upscale
 
 from .dwpose import DWposeDetector
 from .trt_utilities import Engine
@@ -17,6 +17,7 @@ class DwposeTensorrt:
                 "show_face": ("BOOLEAN", {"default": True}),
                 "show_hands": ("BOOLEAN", {"default": True}),
                 "show_body": ("BOOLEAN", {"default": True}),
+                "face_size": (['256', '512'],)
             }
         }
     RETURN_NAMES = ("IMAGE", "cropped_faces", "cropped_faces_lmks", "FACE_BBOXES",)
@@ -24,7 +25,7 @@ class DwposeTensorrt:
     FUNCTION = "main"
     CATEGORY = "tensorrt"
 
-    def main(self, images, show_face, show_hands, show_body):
+    def main(self, images, show_face, show_hands, show_body, face_size):
         # setup tensorrt engines
         if (not hasattr(self, 'engine') or self.engine_label != "engine"):
             self.engine = Engine(os.path.join(folder_paths.models_dir, "tensorrt", "dwpose", "yolox_l.engine"))
@@ -59,39 +60,35 @@ class DwposeTensorrt:
 
             # flatten list
             # Append cropped faces and landmarks as individual tensors
-            # if cropped_faces:
-            #     for cropped_face in cropped_faces:
-            #         cropped_faces_frames.append(torch.from_numpy(cropped_face.astype(np.float32) / 255))
-            #     for cropped_face_lmk in cropped_face_lmks:
-            #         cropped_faces_lmks_frames.append(torch.from_numpy(cropped_face_lmk.astype(np.float32) / 255))
-
             if cropped_faces:
                 for cropped_face in cropped_faces:
-                    cropped_faces_frames.append(cropped_face)
+                    cropped_faces_frames.append(torch.from_numpy(cropped_face.astype(np.float32) / 255).unsqueeze(0))
                 for cropped_face_lmk in cropped_face_lmks:
-                    cropped_faces_lmks_frames.append(cropped_face_lmk)
+                    cropped_faces_lmks_frames.append(torch.from_numpy(cropped_face_lmk.astype(np.float32) / 255).unsqueeze(0))
 
             pbar.update(1)
 
         pose_frames_np = np.array(pose_frames).astype(np.float32) / 255
 
-        # if not cropped_faces_frames:
-        #     # Create a single black image if no faces were detected
-        #     black_image = torch.zeros((1, images.shape[1], images.shape[2], 3), dtype=torch.float32)
-        #     cropped_faces_frames = black_image
-        #     cropped_faces_lmks_frames = black_image
-        # return (torch.from_numpy(pose_frames_np), cropped_faces_frames, cropped_faces_lmks_frames, face_bboxes,)
+        # Resize cropped face image tensors to (face_size)
+        for cropped_img_idx in range(len(cropped_faces_frames)):
+            cropped_face_t = cropped_faces_frames[cropped_img_idx]
+            cropped_lmks_t = cropped_faces_lmks_frames[cropped_img_idx]
+            cropped_face_resized_t = common_upscale(cropped_face_t.permute(0,3,1,2), int(face_size), int(face_size), upscale_method='bicubic', crop='center').permute([0,2,3,1])
+            
+            cropped_lmks_resized_t = common_upscale(cropped_lmks_t.permute(0,3,1,2), int(face_size), int(face_size), upscale_method='bicubic', crop='center').permute([0,2,3,1])
+            cropped_faces_frames[cropped_img_idx] = cropped_face_resized_t
+            cropped_faces_lmks_frames[cropped_img_idx] = cropped_lmks_resized_t
 
-        pose_frames_np = np.array(pose_frames).astype(np.float32) / 255
-        if cropped_faces_frames:
-            cropped_faces_np = np.array(cropped_faces_frames, dtype=np.float32) / 255
-            cropped_faces_lmks_frames_np = np.array(cropped_faces_lmks_frames, dtype=np.float32) / 255
+
+        if not cropped_faces_frames:
+            # Create a single black image if no faces were detected
+            black_image = torch.zeros((1, images.shape[1], images.shape[2], 3), dtype=torch.float32)
+            cropped_faces_frames = black_image
+            cropped_faces_lmks_frames = black_image
+            return (torch.from_numpy(pose_frames_np), cropped_faces_frames, cropped_faces_lmks_frames, face_bboxes,)
         else:
-            # black image
-            cropped_faces_np = np.zeros((1, images.shape[1], images.shape[2], 3), dtype=np.float32) / 255
-            cropped_faces_lmks_frames_np = np.zeros((1, images.shape[1], images.shape[2], 3), dtype=np.float32) / 255
-
-        return (torch.from_numpy(pose_frames_np), torch.from_numpy(cropped_faces_np), torch.from_numpy(cropped_faces_lmks_frames_np), face_bboxes,)
+            return (torch.from_numpy(pose_frames_np), torch.cat(cropped_faces_frames,dim=0), torch.cat(cropped_faces_lmks_frames,dim=0), face_bboxes,)
 
 class FacePaster:
     @classmethod
