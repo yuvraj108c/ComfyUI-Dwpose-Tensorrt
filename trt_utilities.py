@@ -150,12 +150,13 @@ class Engine:
         del self.tensors
 
     def reset(self, engine_path=None):
-        del self.engine
+        # del self.engine
         del self.context
         del self.buffers
         del self.tensors
-        self.engine_path = engine_path
-
+        # self.engine_path = engine_path
+        
+        self.context = None
         self.buffers = OrderedDict()
         self.tensors = OrderedDict()
         self.inputs = {}
@@ -172,7 +173,6 @@ class Engine:
         timing_cache=None,
         update_output_names=None,
     ):
-        print(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
         p = [Profile()]
         if input_profile:
             p = [Profile() for i in range(len(input_profile))]
@@ -223,7 +223,6 @@ class Engine:
         return 0
 
     def load(self):
-        print(f"Loading TensorRT engine: {self.engine_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.engine_path))
 
     def activate(self, reuse_device_memory=None):
@@ -269,6 +268,13 @@ class Engine:
 
     def __str__(self):
         out = ""
+            
+        # When raising errors in the upscaler, this str() called by comfy's execution.py,
+        # but the engine won't have the attributes required for stringification
+        # If str() also raises an error, comfy gets soft-locked, not running prompts until restarted
+        if not hasattr(self.engine, "num_optimization_profiles") or not hasattr(self.engine, "num_bindings"):
+            return out
+        
         for opt_profile in range(self.engine.num_optimization_profiles):
             for binding_idx in range(self.engine.num_bindings):
                 name = self.engine.get_binding_name(binding_idx)

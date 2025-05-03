@@ -10,26 +10,17 @@ import os
 
 
 class Wholebody:
-    def __init__(self):
-        self.engine = Engine(os.path.join(
-            folder_paths.models_dir, "tensorrt", "dwpose", "yolox_l.engine"))
-        self.engine.load()
-        self.engine.activate()
-        self.engine.allocate_buffers()
-
-        self.engine2 = Engine(os.path.join(
-            folder_paths.models_dir, "tensorrt", "dwpose", "dw-ll_ucoco_384.engine"))
-        self.engine2.load()
-        self.engine2.activate()
-        self.engine2.allocate_buffers()
+    def __init__(self, yolox_trt_model, dwpose_trt_model):
+        self.yolox_trt_model = yolox_trt_model
+        self.dwpose_trt_model = dwpose_trt_model
 
     def __call__(self, image_np_hwc):
         cudaStream = torch.cuda.current_stream().cuda_stream
 
         det_result = inference_detector(
-            engine=self.engine, cudaStream=cudaStream, image_np_hwc=image_np_hwc)
+            engine=self.yolox_trt_model, cudaStream=cudaStream, image_np_hwc=image_np_hwc)
         keypoints, scores = inference_pose(
-            engine=self.engine2, cudaStream=cudaStream, out_bbox=det_result, image_np_hwc=image_np_hwc)
+            engine=self.dwpose_trt_model, cudaStream=cudaStream, out_bbox=det_result, image_np_hwc=image_np_hwc)
 
         keypoints_info = np.concatenate(
             (keypoints, scores[..., None]), axis=-1)

@@ -28,9 +28,8 @@ def draw_pose(pose, H, W):
 
 
 class DWposeDetector:
-    def __init__(self):
-
-        self.pose_estimation = Wholebody()
+    def __init__(self, yolox_trt_model, dwpose_trt_model):
+        self.pose_estimation = Wholebody(yolox_trt_model, dwpose_trt_model)
 
     def __call__(self, image_np_hwc, show_face, show_hands, show_body):
         image_np_hwc= image_np_hwc.copy()
