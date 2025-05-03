@@ -148,7 +148,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "DwposeTensorrt": "Dwpose Tensorrt",
+    "DwposeTensorrt": "Dwpose Tensorrt ⚡",
     "LoadDwposeTensorrtModels": "Load Dwpose Tensorrt Models",
 }
 
