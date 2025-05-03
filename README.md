@@ -34,11 +34,12 @@ If you like my projects and wish to see updates and new features, please conside
 ---
 ## ⏱️ Performance
 
-_Note: The following results were benchmarked on FP16 engines inside ComfyUI, using 100 similar frames_
+_Note: The following results were benchmarked inside ComfyUI, using 1000 similar frames_
 
 | Device | FPS |
 | :----: | :-: |
 |  L40s  | 20  |
+|  RTX4090  | 18.7  |
 
 ## 🚀 Installation
 
